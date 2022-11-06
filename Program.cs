@@ -1,8 +1,11 @@
-﻿namespace ConsoleApp12;
+﻿using System.Xml;
+using System.Xml.Serialization;
 
-internal static class Program
+namespace ConsoleApp12;
+
+public static class Program
 {
-    private static void Main()
+    public static void Main()
     {
         Random random = new Random();
         Console.WriteLine("Создаем коллекцию из 100 дробей");
@@ -14,6 +17,25 @@ internal static class Program
             Console.WriteLine(collectionOfFractions[i].ToString("F3"));
         }
 
+        //сами себе злобные буратины так что конвертируем массив дробей в массив строк
+        var collectionOfFractionsString = collectionOfFractions.Select(x => x.ToString("F3")).ToArray();
+        
+        Console.WriteLine("Пишем коллекцию в файл");
+        // File.WriteAllLines("array.txt", collectionOfFractionsString);
+        XmlSerializer serializer;
+        using (var stream = File.Create("array.xml"))
+        {
+            serializer = new XmlSerializer(typeof(string[]));
+            serializer.Serialize(stream, collectionOfFractionsString);
+        }
+        
+        Console.WriteLine("Воротаем коллекцию из файла");
+        var xml = File.ReadAllText("array.xml");
+        serializer = new XmlSerializer(typeof(StringFraction));
+        var rdr = new StringReader(xml);
+        var result = (StringFraction)serializer.Deserialize(rdr)!;
+        Console.WriteLine(string.Join(", ", result.Fraction));
+        
         Console.WriteLine("Ищем целые числа...");
         foreach (var fraction in collectionOfFractions)
         {
@@ -22,29 +44,40 @@ internal static class Program
                 Console.WriteLine($"{fraction.ToString("f3")} == {fraction._n.ToString()}");
             }
         }
+    }
+}
 
+public readonly struct Fraction : IComparable<Fraction>
+{
+    public readonly int _n;
+    public readonly int _d;
+
+    public Fraction(int numerator, int denominator)
+    {
+        _n = numerator;
+        _d = denominator;
     }
 
-    public readonly struct Fraction : IComparable<Fraction>
+    public string ToString(string f3)
     {
-        public readonly int _n;
-        public readonly int _d;
+        return $"{_n}/{_d}";
+    }
 
-        public Fraction(int numerator, int denominator)
-        {
-            _n = numerator;
-            _d = denominator;
-        }
+    public int CompareTo(Fraction other)
+    {
+        var nComparison = _n.CompareTo(other._n);
+        return nComparison != 0 ? nComparison : _d.CompareTo(other._d);
+    }
+}
 
-        public string ToString(string f3)
-        {
-            return $"{_n}/{_d}";
-        }
+[Serializable, XmlRoot("ArrayOfString")]
+public class StringFraction
+{
+    [XmlElement("string")]
+    public string[] Fraction { get; set; }
 
-        public int CompareTo(Fraction other)
-        {
-            var nComparison = _n.CompareTo(other._n);
-            return nComparison != 0 ? nComparison : _d.CompareTo(other._d);
-        }
+    public StringFraction()
+    {
+        Fraction = new string[100];
     }
 }
